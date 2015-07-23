@@ -4,7 +4,12 @@ project(snowmower_mapping)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS
+  roscpp
+  tf
+  geometry_msgs
+  nav_msgs
+)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -76,7 +81,7 @@ find_package(catkin REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES snowmower_mapping
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
@@ -88,7 +93,7 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-# include_directories(include)
+include_directories(include)
 
 ## Declare a cpp library
 # add_library(snowmower_mapping
@@ -97,6 +102,7 @@ catkin_package(
 
 ## Declare a cpp executable
 # add_executable(snowmower_mapping_node src/snowmower_mapping_node.cpp)
+add_executable(mapper src/mapper.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -106,6 +112,7 @@ catkin_package(
 # target_link_libraries(snowmower_mapping_node
 #   ${catkin_LIBRARIES}
 # )
+target_link_libraries(mapper ${catkin_LIBRARIES})
 
 #############
 ## Install ##
