@@ -43,6 +43,21 @@ void Mapper::odomCB(const nav_msgs::Odometry& msg){
     }
   }
 
+  double rot = atan2(y2-y1,x2-x1);
+  double slope = (y2-y1)/(x2-x1);
+
+  // Create an array containing the 
+  double corX[4] = {x1-r_*sin(rot),
+		    x2-r_*sin(rot),
+		    x2+r_*sin(rot),
+		    x1+r_*sin(rot)};
+
+  // Create an array containing the 
+  double corY[4] = {y1+r_*cos(rot),
+		    y2+r_*cos(rot),
+		    y2-r_*cos(rot),
+		    y1-r_*cos(rot)};
+
   // Publish the newly populated map
   occupancyGrid_pub_.publish(mowed_map_);
 }
