@@ -6,7 +6,7 @@ This repository handles the creation of nav_msgs/OccupancyGrid messages that mar
 
 * Make sure the last waypoints are inititialized when the mapper begins mapping.
 
-* Fix the problem where the circle seems to shift to the right and the right side gets moved over to the left side.
+* **DONE** Fix the problem where the circle seems to shift to the right and the right side gets moved over to the left side.
 
 * **DONE** Sometimes the circle doesn't show up at the end of the rectangle. Are we making the circle at the beginning or the end of the path?
 
