@@ -25,8 +25,8 @@ void Mapper::odomCB(const nav_msgs::Odometry& msg){
   // Now begin filling in the OccupancyGrid.
   // Start with the circle around the first point.
   // Find the minimum and maximum x values
-  double xMin1 = x1-r_;
-  double xMax1 = x1+r_;
+  double xMin1 = x2-r_;
+  double xMax1 = x2+r_;
 
   // Find the maximum and minimum columns of the OccupancyGrid corresponding to the max and min x values. The "round" function is used. So a column is selected if the circle extends more than half way into it. Note: The first column is column number 0.
   int xMinMap1 = std::max(int(round(xMin1*ppm_)),0);
@@ -36,8 +36,8 @@ void Mapper::odomCB(const nav_msgs::Odometry& msg){
     // Choose x that is in the middle of a column
     double x = (i - 0.5)/ppm_;
     // FInd the corresponding ymin and ymax values for the current x
-    double yMin1 = y1 - sqrt(fabs(pow(r_,2)-pow(x-x1,2)));
-    double yMax1 = y1 + sqrt(fabs(pow(r_,2)-pow(x-x1,2)));
+    double yMin1 = y2 - sqrt(fabs(pow(r_,2)-pow(x-x2,2)));
+    double yMax1 = y2 + sqrt(fabs(pow(r_,2)-pow(x-x2,2)));
     // And what row in the OccupancyGrid they are
     int yMinMap1 = std::max(int(round(yMin1*ppm_)),0);
     int yMaxMap1 = std::min(int(round(yMax1*ppm_))-1,numRows_-1);
