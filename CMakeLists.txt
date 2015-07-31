@@ -7,6 +7,7 @@ project(snowmower_mapping)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   tf
+  std_msgs
   geometry_msgs
   nav_msgs
 )
@@ -103,6 +104,7 @@ include_directories(include)
 ## Declare a cpp executable
 # add_executable(snowmower_mapping_node src/snowmower_mapping_node.cpp)
 add_executable(mapper src/mapper.cpp)
+add_executable(pubTest src/pubTest.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -113,6 +115,7 @@ add_executable(mapper src/mapper.cpp)
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(mapper ${catkin_LIBRARIES})
+target_link_libraries(pubTest ${catkin_LIBRARIES})
 
 #############
 ## Install ##

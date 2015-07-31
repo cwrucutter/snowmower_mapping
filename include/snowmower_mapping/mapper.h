@@ -9,6 +9,9 @@
 
 class Mapper {
  private:
+  // penDown_ determines whether the map is marked or not. The map is marked when penDown_ == true and not marked when penDown_ == false
+  bool penDown_;      // Boolean value to indicate whether the robot is marking
+
   double mapWidth_;  // Map Width in meters
   double mapHeight_; // Map Height in meters
 
@@ -32,6 +35,10 @@ class Mapper {
  public:
   Mapper();
   ~Mapper();
+
+  // penDown_ determines whether the map is marked or not. The map is marked when penDown_ == true and not marked when penDown_ == false
+  void penDown(); // Changes penDown_ to true
+  void penUp();   // Changes penDown_ to false
 
 };
 

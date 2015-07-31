@@ -15,8 +15,8 @@ void Mapper::odomCB(const nav_msgs::Odometry& msg){
   double x2 = msg.pose.pose.position.x;
   double y2 = msg.pose.pose.position.y;
 
-  // If the robot changed its position
-  if (x1 != x2 || y1 != y2) {
+  // If the robot changed its position and the pen is down
+  if ((x1 != x2 || y1 != y2) && penDown_ == true) {
 
     // Set the last pose to the new pose for the next iteration
     lastPose_.position.x = x2;
@@ -151,34 +151,59 @@ void Mapper::odomCB(const nav_msgs::Odometry& msg){
 	mowed_map_.data[j*numCols_+i] = 100;
       }
     }
+    // Update the map's time stamp
+    ros::Time updateTime = ros::Time::now();
+    mowed_map_.header.stamp = updateTime;
 
     // Publish the newly populated map
     occupancyGrid_pub_.publish(mowed_map_);
   }
 }
 
+/* Changes penDown_ to true*/
+void Mapper::penDown() {
+  penDown_ = true;
+}
+
+/* Changes penDown_ to false*/
+void Mapper::penUp() {
+  penDown_ = false;
+}
+
+
 /* Constructor */
 Mapper::Mapper() {
+
+  // Set up the publisher and subsciber objects
+  occupancyGrid_pub_ = nh_.advertise<nav_msgs::OccupancyGrid>("mowed_map",1);
+  odom_sub_ = nh_.subscribe("odom",10,&Mapper::odomCB,this);
+  // Wait for time to not equal zero. A zero time means that no message has been received on the /clock topic
+  ros::Time timeZero(0.0);
+  while (ros::Time::now() == timeZero) { }
+  // Sleep for a small time to make sure publishing and subscribing works.
+  ros::Duration(0.1).sleep();
+
 
   // TODO: Get all these parameters from the ROS parameter server.
   // Make options for defining number of cells, ppm, and meters.
   // Any two of those should deterimine the other three.
   // Cells = ppm * meters
 
+  // Put the pen Down (Get ready to start marking).
+  penDown_ = true;
+
   ppm_ = 1;
   numCols_ = 10;
   numRows_ = 10;
   r_ = 0.5;
 
-  occupancyGrid_pub_ = nh_.advertise<nav_msgs::OccupancyGrid>("mowed_map",1);
-  odom_sub_ = nh_.subscribe("odom",10,&Mapper::odomCB,this);
-
   // Set the frame of the OccupancyGrid. It should be in the global /map frame
   mowed_map_.header.frame_id = "/odom";
 
   // Set the resolution, load time, width and height of the OccupancyGrid
-  mowed_map_.info.resolution = 1.0/ppm_; //
-  mowed_map_.info.map_load_time = ros::Time::now();
+  mowed_map_.info.resolution = 1.0/ppm_;
+  ros::Time begin = ros::Time::now();
+  mowed_map_.info.map_load_time = begin;
   mowed_map_.info.width = numCols_;
   mowed_map_.info.height = numRows_;
 
@@ -187,12 +212,12 @@ Mapper::Mapper() {
   mowed_map_.info.origin = mapOrigin;
 
   // Make an array of all zeros that's numCOls_*numRows_ 
-  std::vector<signed char> a(numCols_*numRows_);
+  std::vector<signed char> a(numCols_*numRows_,0);
   mowed_map_.data = a;
   // Note: Data in OccupancyGrid is stored in row-major order. Thus, consecutive elements of the rows of the grid are contigious in the vector.
 
-  mowed_map_.data[0] = 100;
-  mowed_map_.data[numCols_*numRows_-1] = 100;
+  // Publish the empty map
+  occupancyGrid_pub_.publish(mowed_map_);
 };
 
 /* Destructor */
@@ -207,7 +232,7 @@ int main(int argc, char **argv) {
 
   // Create a Mapper object
   Mapper mapper;
-
+  //  mapper.penUp();
   // And spin!
   ros::spin();
 
