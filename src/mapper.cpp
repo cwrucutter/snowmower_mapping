@@ -170,32 +170,22 @@ void Mapper::penUp() {
   penDown_ = false;
 }
 
+/* Initialize the parameters and an empty map  */
+void Mapper::init() {
+  // Use the ROS parameter server to initilize parameters
+  if(!private_nh_.getParam("base_frame", base_frame_))
+    base_frame_ = "base_link";
+  if(!private_nh_.getParam("map_frame", map_frame_))
+    map_frame_ = "map";
 
-/* Constructor */
-Mapper::Mapper() {
-
-  // Set up the publisher and subsciber objects
-  occupancyGrid_pub_ = nh_.advertise<nav_msgs::OccupancyGrid>("mowed_map",1);
-  odom_sub_ = nh_.subscribe("odom",10,&Mapper::odomCB,this);
-  // Wait for time to not equal zero. A zero time means that no message has been received on the /clock topic
-  ros::Time timeZero(0.0);
-  while (ros::Time::now() == timeZero) { }
-  // Sleep for a small time to make sure publishing and subscribing works.
-  ros::Duration(0.1).sleep();
-
-
-  // TODO: Get all these parameters from the ROS parameter server.
-  // Make options for defining number of cells, ppm, and meters.
-  // Any two of those should deterimine the other three.
-  // Cells = ppm * meters
-
-  // Put the pen Down (Get ready to start marking).
-  penDown_ = true;
-
-  ppm_ = 1;
-  numCols_ = 10;
-  numRows_ = 10;
-  r_ = 0.5;
+  if(!private_nh_.getParam("ppm", ppm_))
+    ppm_ = 1;
+  if(!private_nh_.getParam("numCols", numCols_))
+    numCols_ = 10;
+  if(!private_nh_.getParam("numRows", numRows_))
+    numRows_ = 10;
+  if(!private_nh_.getParam("radius", r_))
+    r_ = 0.5;;
 
   // Set the frame of the OccupancyGrid. It should be in the global /map frame
   mowed_map_.header.frame_id = "/odom";
@@ -216,6 +206,29 @@ Mapper::Mapper() {
   mowed_map_.data = a;
   // Note: Data in OccupancyGrid is stored in row-major order. Thus, consecutive elements of the rows of the grid are contigious in the vector.
 
+}
+
+/* Constructor */
+Mapper::Mapper(): private_nh_("~") {
+  // Set up the publisher and subsciber objects
+  occupancyGrid_pub_ = public_nh_.advertise<nav_msgs::OccupancyGrid>("mowed_map",1);
+  odom_sub_ = public_nh_.subscribe("odom",10,&Mapper::odomCB,this);
+  // Wait for time to not equal zero. A zero time means that no message has been received on the /clock topic
+  ros::Time timeZero(0.0);
+  while (ros::Time::now() == timeZero) { }
+  // Sleep for a small time to make sure publishing and subscribing works.
+  ros::Duration(0.1).sleep();
+
+
+  // TODO: Get all these parameters from the ROS parameter server.
+  // Make options for defining number of cells, ppm, and meters.
+  // Any two of those should deterimine the other three.
+  // Cells = ppm * meters
+
+  // Put the pen Down (Get ready to start marking).
+  penDown_ = true;
+
+  init();
   // Publish the empty map
   occupancyGrid_pub_.publish(mowed_map_);
 };
