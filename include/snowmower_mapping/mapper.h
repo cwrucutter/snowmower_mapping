@@ -25,6 +25,11 @@ class Mapper {
   std::string map_frame_;  // Frame of the map
 
   // Member Variables
+  ros::NodeHandle public_nh_;
+  ros::NodeHandle private_nh_;
+  ros::Publisher occupancyGrid_pub_;
+  ros::Subscriber odom_sub_;
+
   // penDown_ determines whether the map is marked or not. The map is marked when penDown_ == true and not marked when penDown_ == false
   bool penDown_;      // Boolean value to indicate whether the robot is marking
 
@@ -35,12 +40,12 @@ class Mapper {
   // Member Fucntions
   void odomCB(const nav_msgs::Odometry& msg); // This is the callback function that runs when a nav_msgs/Odometry message is published to the odom topic. The callback function populates the OccupancyGrid message with the new area and publishes it. In the function the percent mowed is also calculated.
 
+  // These two functions fill in the OccupancyGrid at the designated locations
+  void fillCircle(double x, double y);
+  void fillRectangle(double x1, double y1, double x2, double y2);
+
   void init(); // Used to initialize the parameters and an empty map
 
-  ros::NodeHandle public_nh_;
-  ros::NodeHandle private_nh_;
-  ros::Publisher occupancyGrid_pub_;
-  ros::Subscriber odom_sub_;
 
  public:
   Mapper();

@@ -4,6 +4,140 @@
 #include <algorithm>
 #include "snowmower_mapping/mapper.h"
 
+void Mapper::fillCircle(double x1, double y1) {
+  // Now begin filling in the OccupancyGrid.
+  // Start with the circle around the first point.
+  // Find the minimum and maximum x values
+  double xMin = x1-r_;
+  double xMax = x1+r_;
+
+  // Find the maximum and minimum columns of the OccupancyGrid corresponding to the max and min x values. The "round" function is used. So a column is selected if the circle extends more than half way into it. Note: The first column is column number 0.
+  int xMinMap = std::max(int(round(xMin*ppm_)),0);
+  int xMaxMap = std::min(int(round(xMax*ppm_))-1,numCols_-1);
+
+  for (int i = xMinMap; i <= xMaxMap; i++) {
+    // Choose x that is in the middle of a column
+    double x = (i + 0.5)/ppm_;
+    // FInd the corresponding ymin and ymax values for the current x
+    double yMin = y1 - sqrt(fabs(pow(r_,2)-pow(x-x1,2)));
+    double yMax = y1 + sqrt(fabs(pow(r_,2)-pow(x-x1,2)));
+    // And what row in the OccupancyGrid they are
+    int yMinMap = std::max(int(round(yMin*ppm_)),0);
+    int yMaxMap = std::min(int(round(yMax*ppm_))-1,numRows_-1);
+    for (int j = yMinMap; j <= yMaxMap; j++) {
+      // Fill in the OccupancyGrid Here
+      mowed_map_.data[j*numCols_+i] = 100;
+    }
+  }
+}
+
+void Mapper::fillRectangle(double x1, double y1, double x2, double y2) {
+  double rot = atan2(y2-y1,x2-x1);
+  double slope = (y2-y1)/(x2-x1);
+
+  // Create an array containing the x coordinates of the four corners
+  double corXarray[4] = {x1-r_*sin(rot),
+			 x2-r_*sin(rot),
+			 x2+r_*sin(rot),
+			 x1+r_*sin(rot)};
+
+  std::vector<double> corX (corXarray, corXarray + sizeof(corXarray) / sizeof(int));
+
+  // Create an array containing the y coordinates of the four corners
+  double corYarray[4] = {y1+r_*cos(rot),
+			 y2+r_*cos(rot),
+			 y2-r_*cos(rot),
+			 y1-r_*cos(rot)};
+
+  std::vector<double> corY (corYarray, corYarray + sizeof(corYarray) / sizeof(int));
+
+  // The four lines that connect the four corners and bound the box can be described by four lines, which can be described by four slopes and four y-intercepts.
+  std::vector<double> m (4);
+  std::vector<double> b (4);
+
+  for (int i = 0; i<=3; i++) {
+    // First calculate the slope (y1-y2)/(x1-x2)
+    m.at(i) = (corY.at(i)-corY.at((i+1)%4))/(corX.at(i)-corX.at((i+1)%4));
+    // Then calculate the y-int (b = y-m*x)
+    b.at(i) = corY.at(i) - m.at(i)*corX.at(i);
+  }
+
+  // Figure out which lines are on top and which are on the bottom using the rotation angle fo the line between the points. The variables 'top' and 'bottom' will be used to store the indicies of the 'm' and 'b' to be used when determining the max and min y values to use at each x value.
+  std::vector<int> top;
+  std::vector<int> bottom;
+
+  if (rot==0) {
+    top.push_back(0);
+    bottom.push_back(2);
+  }
+  else if (rot > 0 && rot < M_PI/2) {
+    top.push_back(0);
+    top.push_back(1);
+    bottom.push_back(2);
+    bottom.push_back(3);
+  }
+  else if (rot == M_PI/2) {
+    top.push_back(1);
+    bottom.push_back(3);
+  }
+  else if (rot > M_PI/2 && rot < M_PI) {  
+    top.push_back(1);
+    top.push_back(2);
+    bottom.push_back(3);
+    bottom.push_back(0);
+  }
+  else if (rot == M_PI || rot == -M_PI) {
+    top.push_back(2);
+    bottom.push_back(0);
+  }
+  else if (rot > -M_PI && rot < -M_PI/2) {
+    top.push_back(2);
+    top.push_back(3);
+    bottom.push_back(0);
+    bottom.push_back(1);
+  }
+  else if (rot == -M_PI/2) {   
+    top.push_back(3);
+    bottom.push_back(1);
+  }
+  else if (rot > -M_PI/2 && rot < 0) {
+    top.push_back(3);
+    top.push_back(0);
+    bottom.push_back(1);
+    bottom.push_back(2);
+  }
+
+  // Find the min and max x value of the corners of the rectangle.
+  double xMin = *std::min_element(corX.begin(), corX.end());
+  double xMax = *std::max_element(corX.begin(), corX.end());
+
+  int xMinMap = std::max(int(round(xMin*ppm_)),0);
+  int xMaxMap = std::min(int(round(xMax*ppm_)),numCols_-1);
+
+  for (int i = xMinMap; i <= xMaxMap; i++) {
+    double x = (i + 0.5)/ppm_;
+    // Find the corresponding ymin and ymax values for the current x
+    // Do this by finding the min values of the two top and the max values of the two bottoms
+    // Do the first one
+    double yMin = m.at(bottom.at(0))*x+b.at(bottom.at(0));
+    double yMax = m.at(top.at(0))*x+b.at(top.at(0));
+    if (top.size()>1) {
+      // And if there are more than one top and bottom line, check them as well
+      for (int i = 1; i < top.size(); i++) {
+	yMin = std::max(yMin, m.at(bottom.at(i))*x+b.at(bottom.at(i)));
+	yMax = std::min(yMax, m.at(top.at(i))*x+b.at(top.at(i)));
+      }
+    }
+    // Now find what rows those y values are in and iterate through them
+    int yMinMap = std::max(int(round(yMin*ppm_)),0);
+    int yMaxMap = std::min(int(round(yMax*ppm_))-1,numRows_-1);
+    for (int j = yMinMap; j <= yMaxMap; j++) {
+      // Fill in the OccupancyGrid Here
+      mowed_map_.data[j*numCols_+i] = 100;
+    }
+  }
+}
+
 
 void Mapper::odomCB(const nav_msgs::Odometry& msg){
 
@@ -22,135 +156,8 @@ void Mapper::odomCB(const nav_msgs::Odometry& msg){
     lastPose_.position.x = x2;
     lastPose_.position.y = y2;
 
-    // Now begin filling in the OccupancyGrid.
-    // Start with the circle around the first point.
-    // Find the minimum and maximum x values
-    double xMin1 = x2-r_;
-    double xMax1 = x2+r_;
-
-    // Find the maximum and minimum columns of the OccupancyGrid corresponding to the max and min x values. The "round" function is used. So a column is selected if the circle extends more than half way into it. Note: The first column is column number 0.
-    int xMinMap1 = std::max(int(round(xMin1*ppm_)),0);
-    int xMaxMap1 = std::min(int(round(xMax1*ppm_))-1,numCols_-1);
-
-    for (int i = xMinMap1; i <= xMaxMap1; i++) {
-      // Choose x that is in the middle of a column
-      double x = (i + 0.5)/ppm_;
-      // FInd the corresponding ymin and ymax values for the current x
-      double yMin1 = y2 - sqrt(fabs(pow(r_,2)-pow(x-x2,2)));
-      double yMax1 = y2 + sqrt(fabs(pow(r_,2)-pow(x-x2,2)));
-      // And what row in the OccupancyGrid they are
-      int yMinMap1 = std::max(int(round(yMin1*ppm_)),0);
-      int yMaxMap1 = std::min(int(round(yMax1*ppm_))-1,numRows_-1);
-      for (int j = yMinMap1; j <= yMaxMap1; j++) {
-	// Fill in the OccupancyGrid Here
-	mowed_map_.data[j*numCols_+i] = 100;
-      }
-    }
-
-    double rot = atan2(y2-y1,x2-x1);
-    double slope = (y2-y1)/(x2-x1);
-
-    // Create an array containing the x coordinates of the four corners
-    double corXarray[4] = {x1-r_*sin(rot),
-			   x2-r_*sin(rot),
-			   x2+r_*sin(rot),
-			   x1+r_*sin(rot)};
-
-    std::vector<double> corX (corXarray, corXarray + sizeof(corXarray) / sizeof(int));
-
-    // Create an array containing the y coordinates of the four corners
-    double corYarray[4] = {y1+r_*cos(rot),
-			   y2+r_*cos(rot),
-			   y2-r_*cos(rot),
-			   y1-r_*cos(rot)};
-
-    std::vector<double> corY (corYarray, corYarray + sizeof(corYarray) / sizeof(int));
-
-    // The four lines that connect the four corners and bound the box can be described by four lines, which can be described by four slopes and four y-intercepts.
-    std::vector<double> m (4);
-    std::vector<double> b (4);
-
-    for (int i = 0; i<=3; i++) {
-      // First calculate the slope (y1-y2)/(x1-x2)
-      m.at(i) = (corY.at(i)-corY.at((i+1)%4))/(corX.at(i)-corX.at((i+1)%4));
-      // Then calculate the y-int (b = y-m*x)
-      b.at(i) = corY.at(i) - m.at(i)*corX.at(i);
-    }
-
-    // Figure out which lines are on top and which are on the bottom using the rotation angle fo the line between the points. The variables 'top' and 'bottom' will be used to store the indicies of the 'm' and 'b' to be used when determining the max and min y values to use at each x value.
-    std::vector<int> top;
-    std::vector<int> bottom;
-
-    if (rot==0) {
-      top.push_back(0);
-      bottom.push_back(2);
-    }
-    else if (rot > 0 && rot < M_PI/2) {
-      top.push_back(0);
-      top.push_back(1);
-      bottom.push_back(2);
-      bottom.push_back(3);
-    }
-    else if (rot == M_PI/2) {
-      top.push_back(1);
-      bottom.push_back(3);
-    }
-    else if (rot > M_PI/2 && rot < M_PI) {
-      top.push_back(1);
-      top.push_back(2);
-      bottom.push_back(3);
-      bottom.push_back(0);
-    }
-    else if (rot == M_PI || rot == -M_PI) {
-      top.push_back(2);
-      bottom.push_back(0);
-    }
-    else if (rot > -M_PI && rot < -M_PI/2) {
-      top.push_back(2);
-      top.push_back(3);
-      bottom.push_back(0);
-      bottom.push_back(1);
-    }
-    else if (rot == -M_PI/2) {
-      top.push_back(3);
-      bottom.push_back(1);
-    }
-    else if (rot > -M_PI/2 && rot < 0) {
-      top.push_back(3);
-      top.push_back(0);
-      bottom.push_back(1);
-      bottom.push_back(2);
-    }
-
-    // Find the min and max x value of the corners of the rectangle.
-    double xMin3 = *std::min_element(corX.begin(), corX.end());
-    double xMax3 = *std::max_element(corX.begin(), corX.end());
-
-    int xMinMap3 = std::max(int(round(xMin3*ppm_)),0);
-    int xMaxMap3 = std::min(int(round(xMax3*ppm_)),numCols_-1);
-
-    for (int i = xMinMap3; i <= xMaxMap3; i++) {
-      double x = (i + 0.5)/ppm_;
-      // Find the corresponding ymin and ymax values for the current x
-      // Do this by finding the min values of the two top and the max values of the two bottoms
-      // Do the first one
-      double yMin3 = m.at(bottom.at(0))*x+b.at(bottom.at(0));
-      double yMax3 = m.at(top.at(0))*x+b.at(top.at(0));
-      if (top.size()>1) {
-	// And if there are more than one top and bottom line, check them as well
-	for (int i = 1; i < top.size(); i++) {
-	  yMin3 = std::max(yMin3, m.at(bottom.at(i))*x+b.at(bottom.at(i)));
-	  yMax3 = std::min(yMax3, m.at(top.at(i))*x+b.at(top.at(i)));
-	}
-      }
-      // Now find what rows those y values are in and iterate through them
-      int yMinMap3 = std::max(int(round(yMin3*ppm_)),0);
-      int yMaxMap3 = std::min(int(round(yMax3*ppm_))-1,numRows_-1);
-      for (int j = yMinMap3; j <= yMaxMap3; j++) {
-	// Fill in the OccupancyGrid Here
-	mowed_map_.data[j*numCols_+i] = 100;
-      }
-    }
+    fillCircle(x2,y2);
+    fillRectangle(x1,y1,x2,y2);
     // Update the map's time stamp
     ros::Time updateTime = ros::Time::now();
     mowed_map_.header.stamp = updateTime;
