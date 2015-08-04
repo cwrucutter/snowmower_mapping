@@ -2,8 +2,11 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
+#include <fstream> // To read image
+#include <map_server/image_loader.h>
 #include "snowmower_mapping/mapper.h"
 
+/* This function fills a circle in the OccupancyGrid at the desired point. */
 void Mapper::fillCircle(double x1, double y1) {
   // Now begin filling in the OccupancyGrid.
   // Start with the circle around the first point.
@@ -31,6 +34,7 @@ void Mapper::fillCircle(double x1, double y1) {
   }
 }
 
+/* This function fills a rectangle in the OccupancyGrid between the desired points. */
 void Mapper::fillRectangle(double x1, double y1, double x2, double y2) {
   double rot = atan2(y2-y1,x2-x1);
   double slope = (y2-y1)/(x2-x1);
@@ -297,6 +301,28 @@ void Mapper::resetMap() {
   firstDraw_ = true; // The next instance will be the first time drawing on the map
 }
 
+void Mapper::importGrassMap() {
+  /*
+    void loadMapFromFile(nav_msgs::GetMap::Response* resp,
+                         const char* fname, double res, bool negate,
+                         double occ_th, double free_th, double* origin,
+                         bool trinary=true);
+   */
+  // map_server::loadMapFromFile(grass_map_, "image.pgm", ppm_, false, 128, 127, 0, true);
+  /*
+  std::ifstream inFile;
+  inFile.open(imagePath,std::ios::in | std::ios::binary);
+  int n = inFile.tellg();
+  inFile.seekg(0,std::ios::beg);
+  char* res = new char[n];
+  inFile.read(res,n);
+  for (int i = 0; i < n; i++) {
+    res[i] = '5';
+  }
+  bool bit = inFile.eof();
+  inFile.read(res,n);
+  */
+}
 
 /* Constructor */
 Mapper::Mapper(): private_nh_("~") {

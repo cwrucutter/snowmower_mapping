@@ -42,6 +42,7 @@ class Mapper {
   geometry_msgs::Pose lastPose_; // Stores the last pose of the robot
 
   nav_msgs::OccupancyGrid mowed_map_; // Stores the map of the mowed area
+  nav_msgs::OccupancyGrid grass_map_; // Stores areas with grass
 
   // Member Fucntions
   void odomCB(const nav_msgs::Odometry& msg); // This is the callback function that runs when a nav_msgs/Odometry message is published to the odom topic. The callback function populates the OccupancyGrid message with the new area and publishes it. In the function the percent mowed is also calculated.
@@ -52,6 +53,7 @@ class Mapper {
 
   void init(); // Used to initialize the parameters and an empty map
   void resetMap(); // Used to reset the map
+  void importGrassMap(); // imports image file to populate grass map
 
  public:
   Mapper();
