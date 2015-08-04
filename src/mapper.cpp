@@ -139,7 +139,7 @@ void Mapper::fillRectangle(double x1, double y1, double x2, double y2) {
 }
 
 
-void Mapper::odomCB(const nav_msgs::Odometry& msg){
+void Mapper::odomCB(const nav_msgs::Odometry& msg) {
 
   // The point (x1,y1) is set to the last known pose
   double x1 = lastPose_.position.x;
@@ -148,6 +148,60 @@ void Mapper::odomCB(const nav_msgs::Odometry& msg){
   // The point (x2,y2) is set to the new pose
   double x2 = msg.pose.pose.position.x;
   double y2 = msg.pose.pose.position.y;
+
+  if (firstDraw_ && penDown_) {
+    fillCircle(x2,y2);
+    firstDraw_ = false;
+
+    // Set the last pose to the new pose for the next iteration
+    lastPose_.position.x = x2;
+    lastPose_.position.y = y2;
+
+    // Update the map's time stamp
+    ros::Time updateTime = ros::Time::now();
+    mowed_map_.header.stamp = updateTime;
+
+    // Publish the newly populated map
+    occupancyGrid_pub_.publish(mowed_map_);
+  }
+
+  // If the robot changed its position and the pen is down
+  else if ((x1 != x2 || y1 != y2) && penDown_ == true && !firstDraw_) {
+
+    // Set the last pose to the new pose for the next iteration
+    lastPose_.position.x = x2;
+    lastPose_.position.y = y2;
+
+    fillCircle(x2,y2);
+    fillRectangle(x1,y1,x2,y2);
+
+    // Update the map's time stamp
+    ros::Time updateTime = ros::Time::now();
+    mowed_map_.header.stamp = updateTime;
+
+    // Publish the newly populated map
+    occupancyGrid_pub_.publish(mowed_map_);
+  }
+}
+
+void Mapper::spin() {
+
+  // The point (x1,y1) is set to the last known pose
+  double x1 = lastPose_.position.x;
+  double y1 = lastPose_.position.y;
+
+  try{
+    ros::Time now = ros::Time::now();
+    listener_.waitForTransform(map_frame_, base_frame_, now, ros::Duration(3.0));
+    listener_.lookupTransform(map_frame_, base_frame_, now, transform_);
+  }
+  catch (tf::TransformException ex){
+    ROS_ERROR("%s",ex.what());
+  }
+
+  // The point (x2,y2) is set to the new pose
+  double x2 = transform_.getOrigin().x();
+  double y2 = transform_.getOrigin().y();
 
   if (firstDraw_ && penDown_) {
     fillCircle(x2,y2);
@@ -212,7 +266,7 @@ void Mapper::init() {
     r_ = 0.5;;
 
   // Set the frame of the OccupancyGrid. It should be in the global /map frame
-  mowed_map_.header.frame_id = "/odom";
+  mowed_map_.header.frame_id = map_frame_;
 
   // Set the resolution, load time, width and height of the OccupancyGrid
   mowed_map_.info.resolution = 1.0/ppm_;
@@ -231,7 +285,6 @@ void Mapper::init() {
   // Note: Data in OccupancyGrid is stored in row-major order. Thus, consecutive elements of the rows of the grid are contigious in the vector.
 
   firstDraw_ = true; // The next instance will be the first time drawing on the map
-
 }
 
 /* Used to reset the map. */
@@ -284,7 +337,11 @@ int main(int argc, char **argv) {
   Mapper mapper;
   //  mapper.penUp();
   // And spin!
-  ros::spin();
+  //  ros::spin();
+
+  while (ros::ok()) {
+    mapper.spin();
+  }
 
   return 0;
 

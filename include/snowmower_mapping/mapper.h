@@ -4,6 +4,7 @@
 #include <geometry_msgs/Pose.h>
 #include <nav_msgs/Odometry.h>
 #include <string>
+#include <tf/transform_listener.h>
 
 #ifndef __MAPPER_H_INCLUDED__
 #define __MAPPER_H_INCLUDED__
@@ -30,6 +31,9 @@ class Mapper {
   ros::Publisher occupancyGrid_pub_;
   ros::Subscriber odom_sub_;
 
+  tf::StampedTransform transform_;
+  tf::TransformListener listener_;
+
   // penDown_ determines whether the map is marked or not. The map is marked when penDown_ == true and not marked when penDown_ == false
   bool penDown_;      // Boolean value to indicate whether the robot is marking
 
@@ -52,6 +56,8 @@ class Mapper {
  public:
   Mapper();
   ~Mapper();
+
+  void spin(); // Waits for a transform and then writes to the map
 
   // penDown_ determines whether the map is marked or not. The map is marked when penDown_ == true and not marked when penDown_ == false
   void penDown(); // Changes penDown_ to true
