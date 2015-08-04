@@ -234,6 +234,17 @@ void Mapper::init() {
 
 }
 
+/* Used to reset the map. */
+void Mapper::resetMap() {
+  // Make an array of all zeros that's numCOls_*numRows_ 
+  std::vector<signed char> a(numCols_*numRows_,0);
+  mowed_map_.data = a;
+  // Note: Data in OccupancyGrid is stored in row-major order. Thus, consecutive elements of the rows of the grid are contigious in the vector.
+
+  firstDraw_ = true; // The next instance will be the first time drawing on the map
+}
+
+
 /* Constructor */
 Mapper::Mapper(): private_nh_("~") {
   // Set up the publisher and subsciber objects

@@ -47,7 +47,7 @@ class Mapper {
   void fillRectangle(double x1, double y1, double x2, double y2);
 
   void init(); // Used to initialize the parameters and an empty map
-
+  void resetMap(); // Used to reset the map
 
  public:
   Mapper();
