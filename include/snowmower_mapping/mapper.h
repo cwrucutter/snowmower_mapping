@@ -33,6 +33,8 @@ class Mapper {
   // penDown_ determines whether the map is marked or not. The map is marked when penDown_ == true and not marked when penDown_ == false
   bool penDown_;      // Boolean value to indicate whether the robot is marking
 
+  bool firstDraw_;    // Boolean value to indicate the first instance of drawing on the map
+
   geometry_msgs::Pose lastPose_; // Stores the last pose of the robot
 
   nav_msgs::OccupancyGrid mowed_map_; // Stores the map of the mowed area

@@ -149,8 +149,24 @@ void Mapper::odomCB(const nav_msgs::Odometry& msg){
   double x2 = msg.pose.pose.position.x;
   double y2 = msg.pose.pose.position.y;
 
+  if (firstDraw_ && penDown_) {
+    fillCircle(x2,y2);
+    firstDraw_ = false;
+
+    // Set the last pose to the new pose for the next iteration
+    lastPose_.position.x = x2;
+    lastPose_.position.y = y2;
+
+    // Update the map's time stamp
+    ros::Time updateTime = ros::Time::now();
+    mowed_map_.header.stamp = updateTime;
+
+    // Publish the newly populated map
+    occupancyGrid_pub_.publish(mowed_map_);
+  }
+
   // If the robot changed its position and the pen is down
-  if ((x1 != x2 || y1 != y2) && penDown_ == true) {
+  else if ((x1 != x2 || y1 != y2) && penDown_ == true && !firstDraw_) {
 
     // Set the last pose to the new pose for the next iteration
     lastPose_.position.x = x2;
@@ -158,6 +174,7 @@ void Mapper::odomCB(const nav_msgs::Odometry& msg){
 
     fillCircle(x2,y2);
     fillRectangle(x1,y1,x2,y2);
+
     // Update the map's time stamp
     ros::Time updateTime = ros::Time::now();
     mowed_map_.header.stamp = updateTime;
@@ -212,6 +229,8 @@ void Mapper::init() {
   std::vector<signed char> a(numCols_*numRows_,0);
   mowed_map_.data = a;
   // Note: Data in OccupancyGrid is stored in row-major order. Thus, consecutive elements of the rows of the grid are contigious in the vector.
+
+  firstDraw_ = true; // The next instance will be the first time drawing on the map
 
 }
 

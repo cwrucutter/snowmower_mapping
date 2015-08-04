@@ -4,7 +4,7 @@ This repository handles the creation of nav_msgs/OccupancyGrid messages that mar
 ## To Do
 * Use waitForTransform between frames instead of subscribing to odom.
 
-* Make sure the last waypoints are inititialized when the mapper begins mapping.
+* **DONE** Make sure the last waypoints are inititialized when the mapper begins mapping.
 
 * **DONE** Fix the problem where the circle seems to shift to the right and the right side gets moved over to the left side.
 
