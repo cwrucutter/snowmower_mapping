@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <fstream> // To read image
 #include <map_server/image_loader.h>
+#include <nav_msgs/GetMap.h>
+#include <std_msgs/Float64.h>
 #include "snowmower_mapping/mapper.h"
 
 /* This function fills a circle in the OccupancyGrid at the desired point. */
@@ -185,6 +187,10 @@ void Mapper::odomCB(const nav_msgs::Odometry& msg) {
 
     // Publish the newly populated map
     occupancyGrid_pub_.publish(mowed_map_);
+
+    // Calculated and publish percent mowed
+    calculatePercentMowed();
+
   }
 }
 
@@ -239,7 +245,33 @@ void Mapper::spin() {
 
     // Publish the newly populated map
     occupancyGrid_pub_.publish(mowed_map_);
+
+    // Calculated and publish percent mowed
+    calculatePercentMowed();
+
   }
+}
+
+/* Function to calculate percentage of mowed grass and publish it*/
+void Mapper::calculatePercentMowed() {
+  // This is a terribly inefficient way to do this. But go through all the cells, see if there was grass, if so, see if it was mowed. Then divide number of cells with mowed grass by number of cells that ever had grass to get the percent mowed.
+  int mowed_cells = 0;
+  int total_cells = 0;
+  for (int i = 0; i < numCols_*numRows_; i++) {
+    if (grass_map_.data[i] == 100) {
+      total_cells += 1;
+      if (mowed_map_.data[i] == grass_map_.data[i]) {
+	mowed_cells += 1;
+      }
+    }
+  }
+  percent_mowed_ = (double)mowed_cells/(double)total_cells;
+  // Create a message to publish
+  std_msgs::Float64 percent;
+  // And stuff percent_mowed_ inside of it
+  percent.data = percent_mowed_;
+  // Then publish it!
+  percent_pub_.publish(percent);
 }
 
 /* Changes penDown_ to true*/
@@ -302,13 +334,56 @@ void Mapper::resetMap() {
 }
 
 void Mapper::importGrassMap() {
+  nav_msgs::GetMap::Response resp;
+
+  const std::string& fname = "/home/snowmower/Google Drive/Lawnmower/Code/Matlab/arenas/png/circle_inside.png";
+
+  std::ifstream fin(fname.c_str());
+  if (fin.fail()) {
+    ROS_ERROR("Map_server could not open %s.", fname.c_str());
+    return;
+  }
+
+  if (!fin.fail()) {
+    ROS_INFO_STREAM("Found the map.");
+  }
+
+  double res = 1.0/ppm_;
+  double origin[3];
+  origin[0] = origin[1] = origin[2] = 0.0;
   /*
     void loadMapFromFile(nav_msgs::GetMap::Response* resp,
                          const char* fname, double res, bool negate,
                          double occ_th, double free_th, double* origin,
                          bool trinary=true);
    */
-  // map_server::loadMapFromFile(grass_map_, "image.pgm", ppm_, false, 128, 127, 0, true);
+  map_server::loadMapFromFile(&resp, fname.c_str(), res, false, 0.65, 0.196, origin, true);
+
+  ROS_INFO_STREAM("Ran loadMapFromFile");
+
+  // Make an array of all zeros that's numCOls_*numRows_ in length
+  // Here, we will store the scaled version of the OccupancyGrid in resp.map.
+  std::vector<signed char> scaled_map(numCols_*numRows_,0);
+  int numColsIm  = resp.map.info.width;
+  int numRowsIm = resp.map.info.height;
+
+  double widthScale = (double)numColsIm/(double)numCols_;
+  double heightScale = (double)numRowsIm/(double)numRows_;
+  
+  for (int i = 0; i < numCols_; i++) {
+    for (int j = 0; j < numRows_; j++) {
+
+      // Fill in the OccupancyGrid Here
+      scaled_map[j*numCols_+i] = resp.map.data[round(j*widthScale)*numColsIm+round(i*heightScale)];
+    }
+  }
+  grass_map_.info = mowed_map_.info;
+  grass_map_.data = scaled_map;
+
+  ROS_INFO_STREAM("Stored the map in grass_map_");
+
+  grass_map_pub_.publish( grass_map_ );
+
   /*
   std::ifstream inFile;
   inFile.open(imagePath,std::ios::in | std::ios::binary);
@@ -328,6 +403,9 @@ void Mapper::importGrassMap() {
 Mapper::Mapper(): private_nh_("~") {
   // Set up the publisher and subsciber objects
   occupancyGrid_pub_ = public_nh_.advertise<nav_msgs::OccupancyGrid>("mowed_map",1);
+  grass_map_pub_ = public_nh_.advertise<nav_msgs::OccupancyGrid>("grass_map", 1, true);
+  // Publish the percent of the grass_map_ that has been mowed each update
+  percent_pub_ = public_nh_.advertise<std_msgs::Float64>("percent_complete",1);
   odom_sub_ = public_nh_.subscribe("odom",10,&Mapper::odomCB,this);
   // Wait for time to not equal zero. A zero time means that no message has been received on the /clock topic
   ros::Time timeZero(0.0);
@@ -364,6 +442,12 @@ int main(int argc, char **argv) {
   //  mapper.penUp();
   // And spin!
   //  ros::spin();
+
+  ROS_INFO_STREAM("Constructed the class.");
+
+  mapper.importGrassMap();
+
+  ROS_INFO_STREAM("Imported the map.");
 
   while (ros::ok()) {
     mapper.spin();

@@ -14,6 +14,8 @@ This repository handles the creation of nav_msgs/OccupancyGrid messages that mar
 
 * Allow map to be initialized with two of the following: numCols/numRows, ppm, width/height (in meters). And, if all three are used, display a warning and use width/height and whichever resolution is greater.
 
-* Allow the option to import an image file which indicates known a priori grass. Then also publish an occupancy grid that contains the known grass minus the mowed grass.
+* **DONE** Allow the option to import an image file which indicates known a priori grass. Then also publish an occupancy grid that contains the known grass minus the mowed grass.
 
 * Add map server.
+
+* Should the map be initialized from the grass image (number of columns/rows)? Then the resolution (ppm or mpp) or height/width in meters are the only necessary parameters. However, given a really big image, this process might take a long time.
