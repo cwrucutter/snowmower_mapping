@@ -25,6 +25,9 @@ class Mapper {
   std::string base_frame_; // Frame of the robot
   std::string map_frame_;  // Frame of the map
 
+  std::string fileLoc_;    // Location of the image file to be used to set the initial grass and snow locations
+
+
   // Member Variables
   ros::NodeHandle public_nh_;
   ros::NodeHandle private_nh_;

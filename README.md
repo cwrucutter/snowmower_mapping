@@ -22,4 +22,4 @@ This repository handles the creation of nav_msgs/OccupancyGrid messages that mar
 
 * **DONE** Figure out why "paint drip" effect is happening.
 
-* Allow user to specify image name from command line or launch file.
+* **DONE** Allow user to specify image name from command line or launch file.

@@ -296,6 +296,8 @@ void Mapper::init() {
     base_frame_ = "base_link";
   if(!private_nh_.getParam("map_frame", map_frame_))
     map_frame_ = "map";
+  if(!private_nh_.getParam("fileLoc", fileLoc_))
+    map_frame_ = "";
 
   if(!private_nh_.getParam("ppm", ppm_))
     ppm_ = 1;
@@ -341,7 +343,7 @@ void Mapper::resetMap() {
 void Mapper::importGrassMap() {
   nav_msgs::GetMap::Response resp;
 
-  const std::string& fname = "/home/snowmower/Google Drive/Lawnmower/Code/Matlab/arenas/png/circle_inside.png";
+  const std::string& fname = fileLoc_;
 
   std::ifstream fin(fname.c_str());
   if (fin.fail()) {
