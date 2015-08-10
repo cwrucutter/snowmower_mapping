@@ -38,24 +38,22 @@ void Mapper::fillCircle(double x1, double y1) {
 
 /* This function fills a rectangle in the OccupancyGrid between the desired points. */
 void Mapper::fillRectangle(double x1, double y1, double x2, double y2) {
+  // Find the rotation angle of the rectangle and the slope.
   double rot = atan2(y2-y1,x2-x1);
   double slope = (y2-y1)/(x2-x1);
 
-  // Create an array containing the x coordinates of the four corners
-  double corXarray[4] = {x1-r_*sin(rot),
-			 x2-r_*sin(rot),
-			 x2+r_*sin(rot),
-			 x1+r_*sin(rot)};
+  // Create vectors that contain the x and y coordinates of the four corners of the rectangle
+  std::vector<double> corX;
+  corX.push_back(x1-r_*sin(rot));
+  corX.push_back(x2-r_*sin(rot));
+  corX.push_back(x2+r_*sin(rot));
+  corX.push_back(x1+r_*sin(rot));
 
-  std::vector<double> corX (corXarray, corXarray + sizeof(corXarray) / sizeof(int));
-
-  // Create an array containing the y coordinates of the four corners
-  double corYarray[4] = {y1+r_*cos(rot),
-			 y2+r_*cos(rot),
-			 y2-r_*cos(rot),
-			 y1-r_*cos(rot)};
-
-  std::vector<double> corY (corYarray, corYarray + sizeof(corYarray) / sizeof(int));
+  std::vector<double> corY;
+  corY.push_back(y1+r_*cos(rot));
+  corY.push_back(y2+r_*cos(rot));
+  corY.push_back(y2-r_*cos(rot));
+  corY.push_back(y1-r_*cos(rot));
 
   // The four lines that connect the four corners and bound the box can be described by four lines, which can be described by four slopes and four y-intercepts.
   std::vector<double> m (4);
@@ -114,9 +112,16 @@ void Mapper::fillRectangle(double x1, double y1, double x2, double y2) {
   }
 
   // Find the min and max x value of the corners of the rectangle.
-  double xMin = *std::min_element(corX.begin(), corX.end());
-  double xMax = *std::max_element(corX.begin(), corX.end());
+  // Do the first one
+  double xMin = corX.at(0);
+  double xMax = corX.at(0);
+  // And then the other three
+  for (int i = 1; i < corX.size(); i++) {
+    xMin = std::min(xMin, corX.at(i));
+    xMax = std::max(xMax, corX.at(i));
+  }
 
+  // Then determine which row and column those points are in
   int xMinMap = std::max(int(round(xMin*ppm_)),0);
   int xMaxMap = std::min(int(round(xMax*ppm_)),numCols_-1);
 
@@ -129,9 +134,9 @@ void Mapper::fillRectangle(double x1, double y1, double x2, double y2) {
     double yMax = m.at(top.at(0))*x+b.at(top.at(0));
     if (top.size()>1) {
       // And if there are more than one top and bottom line, check them as well
-      for (int i = 1; i < top.size(); i++) {
-	yMin = std::max(yMin, m.at(bottom.at(i))*x+b.at(bottom.at(i)));
-	yMax = std::min(yMax, m.at(top.at(i))*x+b.at(top.at(i)));
+      for (int q = 1; q < top.size(); q++) {
+	yMin = std::max(yMin, m.at(bottom.at(q))*x+b.at(bottom.at(q)));
+	yMax = std::min(yMax, m.at(top.at(q))*x+b.at(top.at(q)));
       }
     }
     // Now find what rows those y values are in and iterate through them
@@ -340,7 +345,7 @@ void Mapper::importGrassMap() {
 
   std::ifstream fin(fname.c_str());
   if (fin.fail()) {
-    ROS_ERROR("Map_server could not open %s.", fname.c_str());
+    ROS_ERROR("Could not open %s.", fname.c_str());
     return;
   }
 
@@ -358,9 +363,6 @@ void Mapper::importGrassMap() {
                          bool trinary=true);
    */
   map_server::loadMapFromFile(&resp, fname.c_str(), res, false, 0.65, 0.196, origin, true);
-
-  ROS_INFO_STREAM("Ran loadMapFromFile");
-
   // Make an array of all zeros that's numCOls_*numRows_ in length
   // Here, we will store the scaled version of the OccupancyGrid in resp.map.
   std::vector<signed char> scaled_map(numCols_*numRows_,0);
@@ -380,23 +382,7 @@ void Mapper::importGrassMap() {
   grass_map_.info = mowed_map_.info;
   grass_map_.data = scaled_map;
 
-  ROS_INFO_STREAM("Stored the map in grass_map_");
-
   grass_map_pub_.publish( grass_map_ );
-
-  /*
-  std::ifstream inFile;
-  inFile.open(imagePath,std::ios::in | std::ios::binary);
-  int n = inFile.tellg();
-  inFile.seekg(0,std::ios::beg);
-  char* res = new char[n];
-  inFile.read(res,n);
-  for (int i = 0; i < n; i++) {
-    res[i] = '5';
-  }
-  bool bit = inFile.eof();
-  inFile.read(res,n);
-  */
 }
 
 /* Constructor */
@@ -405,7 +391,7 @@ Mapper::Mapper(): private_nh_("~") {
   occupancyGrid_pub_ = public_nh_.advertise<nav_msgs::OccupancyGrid>("mowed_map",1);
   grass_map_pub_ = public_nh_.advertise<nav_msgs::OccupancyGrid>("grass_map", 1, true);
   // Publish the percent of the grass_map_ that has been mowed each update
-  percent_pub_ = public_nh_.advertise<std_msgs::Float64>("percent_complete",1);
+  percent_pub_ = public_nh_.advertise<std_msgs::Float64>("percent_complete",1, true);
   odom_sub_ = public_nh_.subscribe("odom",10,&Mapper::odomCB,this);
   // Wait for time to not equal zero. A zero time means that no message has been received on the /clock topic
   ros::Time timeZero(0.0);
@@ -439,15 +425,8 @@ int main(int argc, char **argv) {
 
   // Create a Mapper object
   Mapper mapper;
-  //  mapper.penUp();
-  // And spin!
-  //  ros::spin();
-
-  ROS_INFO_STREAM("Constructed the class.");
 
   mapper.importGrassMap();
-
-  ROS_INFO_STREAM("Imported the map.");
 
   while (ros::ok()) {
     mapper.spin();

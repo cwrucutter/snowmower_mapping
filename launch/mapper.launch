@@ -3,6 +3,12 @@
   <!-- Create a static transfrom from map to odom. In the future this will be updated by the localization node. -->
   <node pkg="tf" type="static_transform_publisher" name="map_to_odom" args="10 10 0 0 0 0 map odom 1"/>
 
+  <!-- Launch stage with the specified world file-->
+<!--  <node pkg="stage_ros" type="stageros" name="stage" args="$(find snowmower_mapping)/world/circle.world"/> -->
+
+  <!-- Launch rviz -->
+  <!-- <node pkg="rviz" type="rviz" name="rviz"/> -->
+
   <!-- Launch the mapping node. -->
   <node pkg="snowmower_mapping" type="mapper" name="mapper" output="screen">
     <param name="base_frame" value="base_link" type="str"/>
