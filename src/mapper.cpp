@@ -5,6 +5,7 @@
 #include <fstream> // To read image
 #include <map_server/image_loader.h>
 #include <nav_msgs/GetMap.h>
+#include <std_srvs/Trigger.h>
 #include <std_msgs/Float64.h>
 #include "snowmower_mapping/mapper.h"
 
@@ -156,9 +157,22 @@ void Mapper::odomCB(const nav_msgs::Odometry& msg) {
   double x1 = lastPose_.position.x;
   double y1 = lastPose_.position.y;
 
+  try{
+    ros::Time now = ros::Time::now();
+    listener_.waitForTransform(map_frame_, base_frame_, now, ros::Duration(3.0));
+    listener_.lookupTransform(map_frame_, base_frame_, now, transform_);
+  }
+  catch (tf::TransformException ex){
+    ROS_ERROR("%s",ex.what());
+  }
+
   // The point (x2,y2) is set to the new pose
-  double x2 = msg.pose.pose.position.x;
-  double y2 = msg.pose.pose.position.y;
+  double x2 = transform_.getOrigin().x();
+  double y2 = transform_.getOrigin().y();
+
+  // The point (x2,y2) is set to the new pose
+  //  double x2 = msg.pose.pose.position.x;
+  //  double y2 = msg.pose.pose.position.y;
 
   if (firstDraw_ && penDown_) {
     fillCircle(x2,y2);
@@ -263,9 +277,10 @@ void Mapper::calculatePercentMowed() {
   int mowed_cells = 0;
   int total_cells = 0;
   for (int i = 0; i < numCols_*numRows_; i++) {
-    if (grass_map_.data[i] == 100) {
+    if (static_grass_map_.data[i] == 100) {
       total_cells += 1;
-      if (mowed_map_.data[i] == grass_map_.data[i]) {
+      if (mowed_map_.data[i] == static_grass_map_.data[i]) {
+	grass_map_.data[i] = 0;
 	mowed_cells += 1;
       }
     }
@@ -338,6 +353,23 @@ void Mapper::resetMap() {
   // Note: Data in OccupancyGrid is stored in row-major order. Thus, consecutive elements of the rows of the grid are contigious in the vector.
 
   firstDraw_ = true; // The next instance will be the first time drawing on the map
+
+  // Update the map's time stamp
+  ros::Time updateTime = ros::Time::now();
+  mowed_map_.header.stamp = updateTime;
+  
+  // Publish the newly populated map
+  occupancyGrid_pub_.publish(mowed_map_);
+
+  // Now reset the percent mowed to 0.
+  percent_mowed_ = 0.0;
+  // Create a message to publish
+  std_msgs::Float64 percent;
+  // And stuff percent_mowed_ inside of it
+  percent.data = percent_mowed_;
+  // Then publish it!
+  percent_pub_.publish(percent);
+
 }
 
 void Mapper::importGrassMap() {
@@ -381,26 +413,82 @@ void Mapper::importGrassMap() {
       scaled_map[j*numCols_+i] = resp.map.data[round(j*widthScale)*numColsIm+round(i*heightScale)];
     }
   }
-  grass_map_.info = mowed_map_.info;
-  grass_map_.data = scaled_map;
+  static_grass_map_.info = mowed_map_.info;
+  static_grass_map_.data = scaled_map;
 
-  grass_map_pub_.publish( grass_map_ );
+  // Publish it.
+  static_grass_map_pub_.publish( static_grass_map_ );
+
+  // And initialize the remaining grass map.
+  grass_map_ = static_grass_map_;
+}
+
+// Server Callback Functions
+bool Mapper::staticGrassMapCallback(nav_msgs::GetMap::Request &req, nav_msgs::GetMap::Response &res) {
+  res.map = static_grass_map_;
+  ROS_INFO_STREAM("Sending static grass map.");
+  return true;
+}
+
+bool Mapper::grassMapCallback(nav_msgs::GetMap::Request &req, nav_msgs::GetMap::Response &res) {
+  res.map = grass_map_;
+  ROS_INFO_STREAM("Sending grass map.");
+  return true;
+}
+
+bool Mapper::mowedMapCallback(nav_msgs::GetMap::Request &req, nav_msgs::GetMap::Response &res) {
+  res.map = mowed_map_;
+  ROS_INFO_STREAM("Sending mowed map.");
+  return true;
+}
+
+bool Mapper::resetMapCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res) {
+  res.success = true;
+  res.message = "Map reset successfully.";
+  resetMap();
+  ROS_INFO_STREAM("Reset map and percent mowed.");
+  return true;
+}
+
+bool Mapper::penUpCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res) {
+  penUp();
+  res.success = true;
+  res.message = "Pen is up. Map will not be marked.";
+  return true;
+}
+
+bool Mapper::penDownCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res) {
+  penDown();
+  firstDraw_ = true; // The next instance will be the first time drawing on the map
+  res.success = true;
+  res.message = "Pen is down. Map will be marked.";
+  return true;
 }
 
 /* Constructor */
 Mapper::Mapper(): private_nh_("~") {
   // Set up the publisher and subsciber objects
   occupancyGrid_pub_ = public_nh_.advertise<nav_msgs::OccupancyGrid>("mowed_map",1);
-  grass_map_pub_ = public_nh_.advertise<nav_msgs::OccupancyGrid>("grass_map", 1, true);
+  static_grass_map_pub_ = public_nh_.advertise<nav_msgs::OccupancyGrid>("grass_map", 1, true);
   // Publish the percent of the grass_map_ that has been mowed each update
   percent_pub_ = public_nh_.advertise<std_msgs::Float64>("percent_complete",1, true);
   odom_sub_ = public_nh_.subscribe("odom",10,&Mapper::odomCB,this);
+
+  // Offer three map servers that can be queried. One returns the original grass map (statis_grass_map), one returns the current location of the grass (grass_map), and one returns the areas that have been covered (mowed_map).
+  static_grass_map_srv_ = public_nh_.advertiseService("static_grass_map", &Mapper::staticGrassMapCallback, this);
+  grass_map_srv_ = public_nh_.advertiseService("grass_map", &Mapper::grassMapCallback, this);
+  mowed_map_srv_ = public_nh_.advertiseService("mowed_map", &Mapper::mowedMapCallback, this);
+
+  // Callback functions that reset the map, put the pen up, and put the pen down.
+  reset_map_srv_ = public_nh_.advertiseService("reset_map", &Mapper::resetMapCallback, this);
+  penUp_srv_ = public_nh_.advertiseService("penup", &Mapper::penUpCallback, this);
+  penDown_srv_ = public_nh_.advertiseService("pendown", &Mapper::penDownCallback, this);
+
   // Wait for time to not equal zero. A zero time means that no message has been received on the /clock topic
   ros::Time timeZero(0.0);
   while (ros::Time::now() == timeZero) { }
   // Sleep for a small time to make sure publishing and subscribing works.
   ros::Duration(0.1).sleep();
-
 
   // TODO: Get all these parameters from the ROS parameter server.
   // Make options for defining number of cells, ppm, and meters.
@@ -430,10 +518,13 @@ int main(int argc, char **argv) {
 
   mapper.importGrassMap();
 
+  ros::spin();
+
+  /*
   while (ros::ok()) {
     mapper.spin();
   }
-
+  */
   return 0;
 
 }

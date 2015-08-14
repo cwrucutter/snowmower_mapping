@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   tf
   std_msgs
+  std_srvs
   geometry_msgs
   nav_msgs
   map_server

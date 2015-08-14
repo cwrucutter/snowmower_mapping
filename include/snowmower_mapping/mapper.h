@@ -32,9 +32,15 @@ class Mapper {
   ros::NodeHandle public_nh_;
   ros::NodeHandle private_nh_;
   ros::Publisher occupancyGrid_pub_;
-  ros::Publisher grass_map_pub_;
+  ros::Publisher static_grass_map_pub_;
   ros::Publisher percent_pub_;
   ros::Subscriber odom_sub_;
+  ros::ServiceServer static_grass_map_srv_;
+  ros::ServiceServer grass_map_srv_;
+  ros::ServiceServer mowed_map_srv_;
+  ros::ServiceServer reset_map_srv_;
+  ros::ServiceServer penUp_srv_;
+  ros::ServiceServer penDown_srv_;
 
   tf::StampedTransform transform_;
   tf::TransformListener listener_;
@@ -48,11 +54,23 @@ class Mapper {
 
   nav_msgs::OccupancyGrid mowed_map_; // Stores the map of the mowed area
   nav_msgs::OccupancyGrid grass_map_; // Stores areas with grass
+  nav_msgs::OccupancyGrid static_grass_map_; // Stores a map of the original grassy area
 
   double percent_mowed_; // Percentage of cells of the grass_map_ overlapped by mowed_map_;
 
   // Member Fucntions
   void odomCB(const nav_msgs::Odometry& msg); // This is the callback function that runs when a nav_msgs/Odometry message is published to the odom topic. The callback function populates the OccupancyGrid message with the new area and publishes it. In the function the percent mowed is also calculated.
+
+  // Service callback functions for the three maps (static grass map, current grass map, and mowed area)
+  bool staticGrassMapCallback(nav_msgs::GetMap::Request &req, nav_msgs::GetMap::Response &res);
+  bool grassMapCallback(nav_msgs::GetMap::Request &req, nav_msgs::GetMap::Response &res);
+  bool mowedMapCallback(nav_msgs::GetMap::Request &req, nav_msgs::GetMap::Response &res);
+  // Service callback function to reset the map and percentage mowed.
+  bool resetMapCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res);
+  // Service callback functions to change whether pen is up or down
+  bool penUpCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res);
+  bool penDownCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res);
+
 
   // These two functions fill in the OccupancyGrid at the designated locations
   void fillCircle(double x, double y);

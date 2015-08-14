@@ -18,6 +18,8 @@ This repository handles the creation of nav_msgs/OccupancyGrid messages that mar
 
 * Add map server.
 
+* Add a service to reset the map and percentage complete, raise and lower the pen, and get the map (mowed, static grass, and remaining grass maps).
+
 * Should the map be initialized from the grass image (number of columns/rows)? Then the resolution (ppm or mpp) or height/width in meters are the only necessary parameters. However, given a really big image, this process might take a long time.
 
 * **DONE** Figure out why "paint drip" effect is happening.
