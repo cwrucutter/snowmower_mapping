@@ -6,7 +6,7 @@
   <node pkg="tf" type="static_transform_publisher" name="map_to_odom" args="10 10 0 0 0 0 map odom 1"/>
 
   <!-- Launch stage with the specified world file-->
-<!--  <node pkg="stage_ros" type="stageros" name="stage" args="$(find snowmower_mapping)/world/$(arg map).world"/> -->
+  <!-- <node pkg="stage_ros" type="stageros" name="stage" args="$(find snowmower_mapping)/world/$(arg map).world"/> -->
 
   <!-- Launch rviz -->
   <!-- <node pkg="rviz" type="rviz" name="rviz"/> -->
@@ -21,4 +21,5 @@
     <param name="numCols" value="100" type="int"/>
     <param name="numRows" value="100" type="int"/>
   </node>
+
 </launch>
