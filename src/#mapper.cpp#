@@ -489,7 +489,7 @@ Mapper::Mapper(): private_nh_("~") {
   ros::Time timeZero(0.0);
   while (ros::Time::now() == timeZero) { }
   // Sleep for a small time to make sure publishing and subscribing works.
-  ros::Duration(0.1).sleep();
+v  ros::Duration(0.1).sleep();
 
   // TODO: Get all these parameters from the ROS parameter server.
   // Make options for defining number of cells, ppm, and meters.
